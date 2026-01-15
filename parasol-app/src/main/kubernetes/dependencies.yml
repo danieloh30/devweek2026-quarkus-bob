@@ -1,0 +1,271 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+data:
+  quarkus.datasource.jdbc.url: jdbc:postgresql://non-deterministic-db:5432/non_deterministic
+  quarkus.otel.exporter.otlp.endpoint: http://lgtm:4318
+  quarkus.otel.exporter.otlp.protocol: http/protobuf
+  quarkus.mailer.host: mailpit
+  quarkus.mailer.mock: "false"
+  quarkus.mailer.port: "1025"
+---
+apiVersion: v1
+kind: Secret
+type: Opaque
+metadata:
+  name: db-creds
+data:
+  quarkus.datasource.username: bm9uX2RldGVybWluaXN0aWM=
+  quarkus.datasource.password: bm9uX2RldGVybWluaXN0aWM=
+---
+apiVersion: v1
+kind: Secret
+type: Opaque
+metadata:
+  name: db-config
+data:
+  POSTGRESQL_DATABASE: bm9uX2RldGVybWluaXN0aWM=
+  POSTGRESQL_USERNAME: bm9uX2RldGVybWluaXN0aWM=
+  POSTGRESQL_PASSWORD: bm9uX2RldGVybWluaXN0aWM=
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mailpit-data-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 3Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: db-data-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 3Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: otel-lgtm-data-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 8Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: non-deterministic-db
+  labels:
+    app.openshift.io/runtime: postgresql
+    app.kubernetes.io/part-of: parasol-insurance
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: non-deterministic-db
+  template:
+    metadata:
+      labels:
+        name: non-deterministic-db
+    spec:
+      containers:
+        - name: non-deterministic-db
+          image: bitnami/postgresql:17
+          ports:
+            - containerPort: 5432
+          envFrom:
+            - secretRef:
+                name: db-config
+          volumeMounts:
+            - mountPath: /bitnami/postgresql
+              name: db-data
+          resources:
+            limits:
+              memory: 128Mi
+            requests:
+              memory: 32Mi
+      volumes:
+        - name: db-data
+          persistentVolumeClaim:
+            claimName: db-data-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: non-deterministic-db
+spec:
+  ports:
+    - port: 5432
+      protocol: TCP
+      targetPort: 5432
+  selector:
+    name: non-deterministic-db
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: lgtm
+spec:
+  selector:
+    app: lgtm
+  ports:
+    - name: grafana
+      protocol: TCP
+      port: 3000
+      targetPort: 3000
+    - name: otel-grpc
+      protocol: TCP
+      port: 4317
+      targetPort: 4317
+    - name: otel-http
+      protocol: TCP
+      port: 4318
+      targetPort: 4318
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana-lgtm
+  labels:
+    app.kubernetes.io/part-of: observability
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: lgtm
+  template:
+    metadata:
+      labels:
+        app: lgtm
+    spec:
+      containers:
+        - name: lgtm
+          image: grafana/otel-lgtm:0.11.0
+          ports:
+            - containerPort: 3000
+            - containerPort: 4317
+            - containerPort: 4318
+          resources:
+            limits:
+              memory: 1Gi
+            requests:
+              memory: 128Mi
+          volumeMounts:
+            - mountPath: /data
+              name: data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: otel-lgtm-data-pvc
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: grafana
+spec:
+  port:
+    targetPort: grafana
+  tls:
+    insecureEdgeTerminationPolicy: Redirect
+    termination: edge
+  to:
+    kind: Service
+    name: lgtm
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mailpit
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: mailpit
+  template:
+    metadata:
+      labels:
+        name: mailpit
+    spec:
+      containers:
+        - name: mailpit
+          image: axllent/mailpit:v1.24.2
+          ports:
+            - containerPort: 1025
+            - containerPort: 8025
+          env:
+            - name: MP_MAX_MESSAGES
+              value: "500"
+            - name: MP_SMTP_RELAY_ALL
+              value: "false"
+            - name: MP_SMTP_RELAY_ALLOW_INSECURE
+              value: "false"
+            - name: MP_SMTP_RELAY_AUTH
+              value: none
+            - name: MP_SMTP_RELAY_PORT
+              value: "25"
+            - name: MP_SMTP_RELAY_STARTTLS
+              value: "false"
+            - name: MP_SMTP_RELAY_TLS
+              value: "false"
+            - name: MP_VERBOSE
+              value: "true"
+            - name: MP_DATABASE
+              value: /data/mailpit.db
+          resources:
+            limits:
+              memory: 128Mi
+            requests:
+              memory: 32Mi
+          volumeMounts:
+            - mountPath: /data
+              name: data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: mailpit-data-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mailpit
+spec:
+  ports:
+    - port: 1025
+      protocol: TCP
+      targetPort: 1025
+      name: smtp
+    - port: 8025
+      protocol: TCP
+      targetPort: 8025
+      name: ui
+  selector:
+    name: mailpit
+  type: ClusterIP
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: mailpit
+spec:
+  port:
+    targetPort: ui
+  tls:
+    insecureEdgeTerminationPolicy: Redirect
+    termination: edge
+  to:
+    kind: Service
+    name: mailpit
