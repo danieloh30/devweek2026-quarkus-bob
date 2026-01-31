@@ -8,6 +8,9 @@
 
 name: Java CI with Maven
 
+env:
+  JVM_VERSION: '25'
+
 on:
   push:
     branches: [ "main" ]
@@ -29,12 +32,11 @@ jobs:
           - parasol-app
 
     steps:
-      - uses: actions/checkout@v6
-      - name: Set up JDK 21
+      - name: Setup Java
         uses: actions/setup-java@v5
         with:
-          java-version: '25'
-          distribution: 'temurin'
+          java-version: ${{ env.JVM_VERSION }}
+          distribution: temurin
           cache: maven
       - name: Maven Build for ${{ matrix.app }}
         working-directory: ${{ matrix.app }}
