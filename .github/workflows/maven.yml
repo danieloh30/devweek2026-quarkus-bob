@@ -38,8 +38,10 @@ jobs:
           java-version: ${{ env.JVM_VERSION }}
           distribution: temurin
           cache: maven
+      - name: Check path
+        run: ls -R
       - name: Maven Build for ${{ matrix.app }}
-        working-directory: ${{ matrix.app }}
+        working-directory: ./${{ matrix.app }}
         run: ./mvnw -B clean package -Dquarkus.http.host=0.0.0.0 -DskipITs=false
 
       # Optional: Uploads the full dependency graph to GitHub to improve the quality of Dependabot alerts this repository can receive
