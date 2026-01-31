@@ -1,0 +1,43 @@
+name: Build
+
+env:
+  JVM_VERSION: '25'
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+concurrency:
+  group: "workflow = ${{ github.workflow }}, ref = ${{ github.event.ref }}, pr = ${{ github.event.pull_request.id }}"
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        app:
+          - mcp-server
+          - parasol-aoo
+
+    name: "Build ${{ matrix.app }}"
+    steps:
+      - uses: actions/checkout@v6
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          java-version: ${{ env.JVM_VERSION }}
+          distribution: temurin
+          cache: maven
+      - name: Maven Build for ${{ matrix.app }}
+        working-directory: ${{ matrix.app }}
+        run: ./mvnw -B clean verify -Dquarkus.http.host=0.0.0.0 -DskipITs=false
