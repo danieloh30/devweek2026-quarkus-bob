@@ -111,11 +111,11 @@
 			<groupId>io.quarkus</groupId>
 			<artifactId>quarkus-smallrye-health</artifactId>
 		</dependency>
-		<dependency>
+		<!-- <dependency>
 			<groupId>io.quarkiverse.chappie</groupId>
 			<artifactId>quarkus-chappie</artifactId>
 			<version>${quarkus.chappie.version}</version>
-		</dependency>
+		</dependency> -->
 		<dependency>
 			<groupId>io.quarkus</groupId>
 			<artifactId>quarkus-config-yaml</artifactId>
