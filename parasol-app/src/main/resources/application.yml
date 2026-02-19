@@ -4,11 +4,9 @@ quarkus:
 
   # Default LangChain4j configuration
   langchain4j:
-    mcp:
-      tools:
-        transport-type: streamable-http
-        url: http://localhost:8088/mcp
-        cache-tool-list: false
+    # Default chat model configuration
+    chat-model:
+      provider: openai
 
     parasol-chat:
       chat-model:
