@@ -1,11 +1,18 @@
 version: 2
 updates:
-  #  Main branch
+  # Help Desk Agent
   - package-ecosystem: maven
-    directory: "/"
+    directory: "/parasol-app"
     schedule:
       interval: daily
     open-pull-requests-limit: 10
+  # Help Desk MCP Server
+  - package-ecosystem: maven
+    directory: "/mcp-server"
+    schedule:
+      interval: daily
+    open-pull-requests-limit: 10
+  # GitHub Actions
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
