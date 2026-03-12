@@ -38,5 +38,4 @@ public interface ClaimService {
 	@ToolBox({ ClaimantInfoService.class, NotificationService.class })
 	@McpToolBox
 	String chat(ClaimBotQuery query);
-//	Multi<String> chat(ClaimBotQuery query);
 }
